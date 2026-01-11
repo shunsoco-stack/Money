@@ -1,0 +1,148 @@
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  color: #0f172a;
+}
+
+.header h1 {
+  margin: 0 0 6px;
+  font-size: 24px;
+}
+.sub {
+  margin: 0;
+  color: #475569;
+}
+
+.card {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  display: block;
+}
+.label {
+  display: block;
+  font-size: 13px;
+  color: #334155;
+  margin: 0 0 6px;
+}
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+}
+input:focus,
+textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+button {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+button.primary {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: white;
+}
+button.secondary {
+  background: #f8fafc;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status {
+  margin: 10px 0 0;
+  color: #334155;
+  min-height: 1.2em;
+}
+
+.tableWrap {
+  overflow: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th,
+.table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 10px;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.table th {
+  text-align: left;
+  color: #334155;
+  background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.muted {
+  color: #64748b;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+.badge.ok {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.08);
+  color: #065f46;
+}
+.badge.ng {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+  color: #7f1d1d;
+}
+
+.footer {
+  margin-top: 10px;
+}
+
