@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>バリュー投資スクリーナー</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <h1>バリュー投資スクリーナー</h1>
+        <p class="sub">
+          希望するPER/PBR/配当利回りを入力して、銘柄の最新情報を取得します（データ取得元: yfinance）。
+        </p>
+      </header>
+
+      <section class="card">
+        <div class="tabs">
+          <button id="tabScreen" class="tab active" type="button">銘柄入力なし（スクリーニング）</button>
+          <button id="tabQuotes" class="tab" type="button">銘柄指定（個別取得）</button>
+        </div>
+
+        <div class="grid">
+          <label class="field">
+            <span class="label">PER 上限（例: 12）</span>
+            <input id="perMax" type="number" step="0.01" placeholder="未指定可" />
+          </label>
+          <label class="field">
+            <span class="label">PBR 上限（例: 1.2）</span>
+            <input id="pbrMax" type="number" step="0.01" placeholder="未指定可" />
+          </label>
+          <label class="field">
+            <span class="label">配当利回り 下限%（例: 3）</span>
+            <input id="divMin" type="number" step="0.01" placeholder="未指定可" />
+          </label>
+        </div>
+
+        <div id="screenOptions" class="grid screenGrid">
+          <label class="field">
+            <span class="label">結果件数（上限）</span>
+            <input id="limit" type="number" step="1" value="200" min="1" max="2000" />
+          </label>
+          <label class="field">
+            <span class="label">オフセット（次ページ）</span>
+            <input id="offset" type="number" step="1" value="0" min="0" />
+          </label>
+          <label class="field checkbox">
+            <span class="label"> </span>
+            <label class="checkline">
+              <input id="includeEtf" type="checkbox" checked />
+              <span>ETFを含める</span>
+            </label>
+          </label>
+        </div>
+
+        <label id="symbolsField" class="field hidden">
+          <span class="label">銘柄（1行1銘柄。日本株は4桁なら自動で .T を付与）</span>
+          <textarea id="symbols" rows="6" placeholder="例:&#10;7203&#10;9432.T&#10;AAPL"></textarea>
+        </label>
+
+        <div class="actions">
+          <button id="runBtn" class="primary">取得する</button>
+          <button id="demoBtn" class="secondary" type="button">例を入力</button>
+        </div>
+
+        <noscript>
+          <p class="status">
+            JavaScriptが無効です。このアプリはJavaScriptが必要です。
+          </p>
+        </noscript>
+        <p id="status" class="status" aria-live="polite">
+          初期化中です…（この表示が消えない場合、`http://127.0.0.1:8000` から開けているか確認してください）
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="tableWrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>判定</th>
+                <th>銘柄</th>
+                <th>名称</th>
+                <th class="num">株価</th>
+                <th>株価ソース</th>
+                <th>通貨</th>
+                <th class="num">PER</th>
+                <th>PER種別</th>
+                <th class="num">PBR</th>
+                <th class="num">予想1株配当(年)</th>
+                <th class="num">配当利回り%</th>
+                <th>asOf</th>
+                <th>理由</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody">
+              <tr>
+                <td colspan="13" class="muted">条件を入力して「取得する」を押してください。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p class="muted">
+          注意: 取得できる指標は銘柄/市場によって欠損することがあります。投資判断はご自身の責任でお願いします。
+        </p>
+      </footer>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
+
