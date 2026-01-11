@@ -64,7 +64,14 @@
           <button id="demoBtn" class="secondary" type="button">例を入力</button>
         </div>
 
-        <p id="status" class="status" aria-live="polite"></p>
+        <noscript>
+          <p class="status">
+            JavaScriptが無効です。このアプリはJavaScriptが必要です。
+          </p>
+        </noscript>
+        <p id="status" class="status" aria-live="polite">
+          初期化中です…（この表示が消えない場合、`http://127.0.0.1:8000` から開けているか確認してください）
+        </p>
       </section>
 
       <section class="card">

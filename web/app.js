@@ -39,6 +39,12 @@ function setLoading(isLoading) {
   runBtn.textContent = isLoading ? "取得中..." : "取得する";
 }
 
+function getEl(id) {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`画面要素が見つかりません: #${id}（古いHTML/JSが混在している可能性があります）`);
+  return el;
+}
+
 function badge(passes) {
   const cls = passes ? "badge ok" : "badge ng";
   const txt = passes ? "OK" : "NG";
@@ -103,9 +109,9 @@ function setMode(nextMode) {
 }
 
 async function run() {
-  const perMax = parseNumberOrNull(document.getElementById("perMax").value);
-  const pbrMax = parseNumberOrNull(document.getElementById("pbrMax").value);
-  const divMin = parseNumberOrNull(document.getElementById("divMin").value);
+  const perMax = parseNumberOrNull(getEl("perMax").value);
+  const pbrMax = parseNumberOrNull(getEl("pbrMax").value);
+  const divMin = parseNumberOrNull(getEl("divMin").value);
 
   setLoading(true);
   setStatus("取得中です（時間がかかる場合があります）...");
@@ -113,7 +119,7 @@ async function run() {
   try {
     let resp;
     if (mode === "quotes") {
-      const symbols = splitSymbols(document.getElementById("symbols").value);
+      const symbols = splitSymbols(getEl("symbols").value);
       if (symbols.length === 0) {
         setStatus("銘柄が未入力です。");
         renderRows([]);
@@ -130,9 +136,9 @@ async function run() {
         }),
       });
     } else {
-      const limit = parseNumberOrNull(document.getElementById("limit").value) ?? 200;
-      const offset = parseNumberOrNull(document.getElementById("offset").value) ?? 0;
-      const includeEtf = !!document.getElementById("includeEtf").checked;
+      const limit = parseNumberOrNull(getEl("limit").value) ?? 200;
+      const offset = parseNumberOrNull(getEl("offset").value) ?? 0;
+      const includeEtf = !!getEl("includeEtf").checked;
       resp = await fetch("/api/screen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -170,25 +176,39 @@ async function run() {
 }
 
 function demo() {
-  document.getElementById("perMax").value = "12";
-  document.getElementById("pbrMax").value = "1.5";
-  document.getElementById("divMin").value = "2.5";
+  getEl("perMax").value = "12";
+  getEl("pbrMax").value = "1.5";
+  getEl("divMin").value = "2.5";
   if (mode === "quotes") {
-    document.getElementById("symbols").value = ["7203", "9432", "8306", "AAPL"].join(
+    getEl("symbols").value = ["7203", "9432", "8306", "AAPL"].join(
       "\n",
     );
   } else {
-    document.getElementById("limit").value = "200";
-    document.getElementById("offset").value = "0";
-    document.getElementById("includeEtf").checked = true;
+    getEl("limit").value = "200";
+    getEl("offset").value = "0";
+    getEl("includeEtf").checked = true;
   }
 }
 
-document.getElementById("runBtn").addEventListener("click", run);
-document.getElementById("demoBtn").addEventListener("click", demo);
+function init() {
+  // If JS is running, clear initial message.
+  setStatus("");
 
-document.getElementById("tabScreen").addEventListener("click", () => setMode("screen"));
-document.getElementById("tabQuotes").addEventListener("click", () => setMode("quotes"));
+  getEl("runBtn").addEventListener("click", run);
+  getEl("demoBtn").addEventListener("click", demo);
 
-setMode("screen");
+  getEl("tabScreen").addEventListener("click", () => setMode("screen"));
+  getEl("tabQuotes").addEventListener("click", () => setMode("quotes"));
+
+  setMode("screen");
+}
+
+try {
+  init();
+} catch (e) {
+  const msg = e?.message || String(e);
+  // Show on screen so user doesn't need DevTools.
+  const statusEl = document.getElementById("status");
+  if (statusEl) statusEl.textContent = `初期化エラー: ${msg}`;
+}
 
