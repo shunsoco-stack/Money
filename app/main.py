@@ -100,13 +100,15 @@ def _env(name: str) -> str | None:
 
 def _ensure_jquants_configured() -> None:
     # Prefer ID token if provided; otherwise refresh token; otherwise email/password.
+    if _env("JQUANTS_API_KEY"):
+        return
     if _env("JQUANTS_ID_TOKEN") or _env("JQUANTS_REFRESH_TOKEN") or (_env("JQUANTS_EMAIL") and _env("JQUANTS_PASSWORD")):
         return
     raise HTTPException(
         status_code=400,
         detail=(
             "J-Quantsの認証情報が未設定です。環境変数のいずれかを設定してください: "
-            "JQUANTS_ID_TOKEN または JQUANTS_REFRESH_TOKEN または (JQUANTS_EMAIL と JQUANTS_PASSWORD)"
+            "JQUANTS_API_KEY または JQUANTS_ID_TOKEN または JQUANTS_REFRESH_TOKEN または (JQUANTS_EMAIL と JQUANTS_PASSWORD)"
         ),
     )
 
@@ -115,6 +117,9 @@ _jq_token_cache: dict[str, CacheEntry] = {}
 
 
 def _jq_get_id_token() -> str:
+    # If API key is provided, J-Quants may allow direct access for some endpoints.
+    # We still attempt token-based auth when needed; callers will attach API key header as well.
+
     # 1) If user provides a JWT-like token directly, use it.
     idt = _env("JQUANTS_ID_TOKEN")
     if idt:
@@ -134,10 +139,15 @@ def _jq_get_id_token() -> str:
             _ensure_jquants_configured()
             raise HTTPException(status_code=400, detail="J-Quantsの認証情報が不完全です。")
         # Auth user -> refreshToken
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        api_key = _env("JQUANTS_API_KEY")
+        if api_key:
+            headers["X-API-KEY"] = api_key
         r = requests.post(
             f"{_JQUANTS_BASE}/token/auth_user",
             json={"mailaddress": email, "password": password},
-            timeout=15,
+            headers=headers,
+            timeout=20,
         )
         if r.status_code != 200:
             raise HTTPException(status_code=502, detail=f"J-Quants auth_user失敗: HTTP {r.status_code}: {r.text}")
@@ -146,9 +156,14 @@ def _jq_get_id_token() -> str:
             raise HTTPException(status_code=502, detail="J-Quants auth_userのrefreshTokenが取得できませんでした。")
 
     # Refresh -> idToken
+    headers2: dict[str, str] = {"Content-Type": "application/json"}
+    api_key2 = _env("JQUANTS_API_KEY")
+    if api_key2:
+        headers2["X-API-KEY"] = api_key2
     r2 = requests.post(
         f"{_JQUANTS_BASE}/token/auth_refresh",
         json={"refreshToken": refresh},
+        headers=headers2,
         timeout=15,
     )
     if r2.status_code != 200:
@@ -163,14 +178,29 @@ def _jq_get_id_token() -> str:
 
 
 def _jq_get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-    token = _jq_get_id_token()
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str] = {}
+    api_key = _env("JQUANTS_API_KEY")
+    if api_key:
+        headers["X-API-KEY"] = api_key
+
+    # Token auth is used when configured (or when API requires it).
+    token = None
+    try:
+        if _env("JQUANTS_ID_TOKEN") or _env("JQUANTS_REFRESH_TOKEN") or (_env("JQUANTS_EMAIL") and _env("JQUANTS_PASSWORD")):
+            token = _jq_get_id_token()
+    except HTTPException:
+        # If token isn't configured/obtainable but API key is, still try API key-only access.
+        token = None
+
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     r = requests.get(f"{_JQUANTS_BASE}{path}", params=params or {}, headers=headers, timeout=30)
     if r.status_code == 401:
         # Retry once after forcing refresh if token is cached.
         _jq_token_cache.pop("idToken", None)
         token = _jq_get_id_token()
-        headers = {"Authorization": f"Bearer {token}"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         r = requests.get(f"{_JQUANTS_BASE}{path}", params=params or {}, headers=headers, timeout=30)
     if r.status_code != 200:
         raise HTTPException(status_code=502, detail=f"J-Quants API失敗 {path}: HTTP {r.status_code}: {r.text}")

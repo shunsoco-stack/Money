@@ -12,6 +12,7 @@
 環境変数で認証情報を設定したうえで、画面の「銘柄入力なし（スクリーニング）」タブから実行してください。
 
 - 必要な環境変数（いずれか）
+  - `JQUANTS_API_KEY`（ポータルの「API Key」。※一部/全てのAPIで必要な場合があります）
   - `JQUANTS_ID_TOKEN`（推奨: 取得済みのIDトークンを設定）
   - `JQUANTS_REFRESH_TOKEN`（refreshから自動でidTokenを取得）
   - `JQUANTS_EMAIL` と `JQUANTS_PASSWORD`（アプリがrefresh/idを取得）
