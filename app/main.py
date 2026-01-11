@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import requests
 import yfinance as yf
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
@@ -57,7 +58,7 @@ class QuoteRequest(BaseModel):
 app = FastAPI(title="Value Investing Screener", version="0.1.0")
 
 _cache: dict[str, CacheEntry] = {}
-_CACHE_TTL_SECONDS = 60.0
+_CACHE_TTL_SECONDS = 600.0
 
 _BASE_DIR = Path(__file__).resolve().parents[1]
 _WEB_DIR = _BASE_DIR / "web"
@@ -86,13 +87,6 @@ def _get_quote(symbol: str) -> dict[str, Any]:
     error: str | None = None
 
     try:
-        # NOTE: `info` is heavier but contains valuation/dividend fields.
-        info = t.info or {}
-    except Exception as e:
-        error = f"Failed to load ticker info: {e}"
-        info = {}
-
-    try:
         fi = getattr(t, "fast_info", None)
         if fi:
             # yfinance exposes FastInfo object; cast to dict-ish
@@ -100,7 +94,15 @@ def _get_quote(symbol: str) -> dict[str, Any]:
     except Exception:
         fast = {}
 
+    try:
+        # NOTE: `info` is heavier but contains valuation/dividend fields.
+        info = t.info or {}
+    except Exception as e:
+        error = f"Failed to load ticker info: {e}"
+        info = {}
+
     last_price = _to_float(fast.get("last_price")) or _to_float(info.get("regularMarketPrice"))
+    price_source = "yfinance"
     currency = info.get("currency") or fast.get("currency")
 
     pe, pe_source = _pick_pe(info)
@@ -114,11 +116,21 @@ def _get_quote(symbol: str) -> dict[str, Any]:
     if dividend_yield is None and dividend_rate is not None and last_price:
         dividend_yield = dividend_rate / last_price
 
+    # Fallback: when yfinance is rate-limited or missing, fetch last price from stooq.
+    if last_price is None:
+        stooq_price = _get_stooq_last_price(symbol)
+        if stooq_price is not None:
+            last_price = stooq_price
+            price_source = "stooq"
+            if currency is None:
+                currency = _infer_currency(symbol)
+
     payload = {
         "symbol": symbol,
         "shortName": info.get("shortName") or info.get("longName"),
         "currency": currency,
         "lastPrice": last_price,
+        "priceSource": price_source,
         "pe": pe,
         "peSource": pe_source,
         "pbr": pbr,
@@ -131,6 +143,67 @@ def _get_quote(symbol: str) -> dict[str, Any]:
 
     _cache[symbol] = CacheEntry(expires_at=now + _CACHE_TTL_SECONDS, payload=payload)
     return payload
+
+
+def _infer_currency(symbol: str) -> str | None:
+    s = (symbol or "").upper()
+    if s.endswith(".T") or s.endswith(".JP"):
+        return "JPY"
+    if s.endswith(".US") or (("." not in s) and s.isalpha()):
+        return "USD"
+    return None
+
+
+def _to_stooq_symbol(symbol: str) -> str:
+    s = (symbol or "").strip()
+    if not s:
+        return s
+    # Tokyo: 7203.T -> 7203.jp
+    if s.upper().endswith(".T"):
+        return f"{s[:-2]}.jp".lower()
+    # US: AAPL -> aapl.us
+    if "." not in s and s.isalpha():
+        return f"{s}.us".lower()
+    # If user provides AAPL.US / 7203.JP etc.
+    return s.lower()
+
+
+def _get_stooq_last_price(symbol: str) -> float | None:
+    stooq_symbol = _to_stooq_symbol(symbol)
+    # CSV: often a single line without header:
+    # Symbol,Date,Time,Open,High,Low,Close,Volume,(OpenInt)
+    url = f"https://stooq.com/q/l/?s={stooq_symbol}&i=d"
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code != 200:
+            return None
+        text = (r.text or "").strip()
+        if not text:
+            return None
+        lines = text.splitlines()
+
+        # If response includes header, use it.
+        if len(lines) >= 2 and lines[0].lower().startswith("symbol,"):
+            header = lines[0].split(",")
+            values = lines[1].split(",")
+            if len(header) != len(values):
+                return None
+            row = dict(zip(header, values))
+            close = row.get("Close")
+            if not close or close.upper() == "N/A":
+                return None
+            return _to_float(close)
+
+        # Otherwise, parse first line as values.
+        values = lines[0].split(",")
+        if len(values) < 7:
+            return None
+        close = values[6]
+        if not close or close.upper() == "N/A":
+            return None
+        return _to_float(close)
+    except Exception:
+        return None
 
 
 def _passes_filters(q: dict[str, Any], req: QuoteRequest) -> tuple[bool, list[str]]:

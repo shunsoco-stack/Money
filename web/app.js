@@ -57,7 +57,7 @@ function escapeHtml(s) {
 function renderRows(items) {
   const body = document.getElementById("resultsBody");
   if (!items || items.length === 0) {
-    body.innerHTML = `<tr><td colspan="11" class="muted">該当データがありません。</td></tr>`;
+    body.innerHTML = `<tr><td colspan="12" class="muted">該当データがありません。</td></tr>`;
     return;
   }
 
@@ -72,6 +72,7 @@ function renderRows(items) {
         <td>${escapeHtml(r.symbol)}</td>
         <td>${escapeHtml(r.shortName || "-")}</td>
         <td class="num">${formatMaybe(r.lastPrice, 2)}</td>
+        <td>${escapeHtml(r.priceSource || "-")}</td>
         <td>${escapeHtml(r.currency || "-")}</td>
         <td class="num">${formatMaybe(r.pe, 2)}</td>
         <td>${escapeHtml(r.peSource || "-")}</td>

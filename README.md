@@ -4,15 +4,16 @@
 **最新株価・PER・PBR・（取得できれば）予想1株配当（年）**などを取得して一覧表示します。
 
 データ取得元は `yfinance`（Yahoo Finance由来）です。銘柄によってはPER/PBR/配当が取得できない場合があります。
+また、`yfinance` がレート制限になる場合があるため、**株価（lastPrice）は stooq からフォールバック**することがあります。
 
 ### 起動方法
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ブラウザで `http://localhost:8000` を開いてください。
