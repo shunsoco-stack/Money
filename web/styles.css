@@ -66,6 +66,36 @@ textarea:focus {
   margin-top: 12px;
 }
 
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.tab {
+  background: #f8fafc;
+}
+.tab.active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.screenGrid {
+  margin-top: 12px;
+}
+.checkbox .checkline {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0 0;
+  color: #334155;
+  user-select: none;
+}
+
 button {
   border: 1px solid #cbd5e1;
   border-radius: 10px;

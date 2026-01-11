@@ -57,7 +57,7 @@ function escapeHtml(s) {
 function renderRows(items) {
   const body = document.getElementById("resultsBody");
   if (!items || items.length === 0) {
-    body.innerHTML = `<tr><td colspan="12" class="muted">該当データがありません。</td></tr>`;
+    body.innerHTML = `<tr><td colspan="13" class="muted">該当データがありません。</td></tr>`;
     return;
   }
 
@@ -79,38 +79,74 @@ function renderRows(items) {
         <td class="num">${formatMaybe(r.pbr, 2)}</td>
         <td class="num">${formatMaybe(r.dividendRate, 2)}</td>
         <td class="num">${formatMaybe(r.dividendYield, 2)}</td>
+        <td>${escapeHtml(r.asOfDate || "-")}</td>
         <td class="muted">${escapeHtml(why || "-")}</td>
       </tr>`;
     })
     .join("");
 }
 
+let mode = "screen"; // 'screen' or 'quotes'
+
+function setMode(nextMode) {
+  mode = nextMode;
+  const tabScreen = document.getElementById("tabScreen");
+  const tabQuotes = document.getElementById("tabQuotes");
+  const symbolsField = document.getElementById("symbolsField");
+  const screenOptions = document.getElementById("screenOptions");
+
+  const isScreen = mode === "screen";
+  tabScreen.classList.toggle("active", isScreen);
+  tabQuotes.classList.toggle("active", !isScreen);
+  symbolsField.classList.toggle("hidden", isScreen);
+  screenOptions.classList.toggle("hidden", !isScreen);
+}
+
 async function run() {
   const perMax = parseNumberOrNull(document.getElementById("perMax").value);
   const pbrMax = parseNumberOrNull(document.getElementById("pbrMax").value);
   const divMin = parseNumberOrNull(document.getElementById("divMin").value);
-  const symbols = splitSymbols(document.getElementById("symbols").value);
-
-  if (symbols.length === 0) {
-    setStatus("銘柄が未入力です。");
-    renderRows([]);
-    return;
-  }
 
   setLoading(true);
-  setStatus("取得中です（銘柄数が多いと時間がかかります）...");
+  setStatus("取得中です（時間がかかる場合があります）...");
 
   try {
-    const resp = await fetch("/api/quotes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        symbols,
-        per_max: perMax,
-        pbr_max: pbrMax,
-        dividend_yield_min: divMin,
-      }),
-    });
+    let resp;
+    if (mode === "quotes") {
+      const symbols = splitSymbols(document.getElementById("symbols").value);
+      if (symbols.length === 0) {
+        setStatus("銘柄が未入力です。");
+        renderRows([]);
+        return;
+      }
+      resp = await fetch("/api/quotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbols,
+          per_max: perMax,
+          pbr_max: pbrMax,
+          dividend_yield_min: divMin,
+        }),
+      });
+    } else {
+      const limit = parseNumberOrNull(document.getElementById("limit").value) ?? 200;
+      const offset = parseNumberOrNull(document.getElementById("offset").value) ?? 0;
+      const includeEtf = !!document.getElementById("includeEtf").checked;
+      resp = await fetch("/api/screen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          per_max: perMax,
+          pbr_max: pbrMax,
+          dividend_yield_min: divMin,
+          include_etf: includeEtf,
+          limit,
+          offset,
+          only_passes: true,
+        }),
+      });
+    }
 
     if (!resp.ok) {
       const t = await resp.text();
@@ -119,7 +155,12 @@ async function run() {
 
     const data = await resp.json();
     renderRows(data.results);
-    setStatus(`取得完了: ${data.count} 件`);
+    if (mode === "screen") {
+      const extra = data.asOfDate ? ` / asOf=${data.asOfDate}` : "";
+      setStatus(`取得完了: 表示 ${data.count} 件 / 全 ${data.total} 件${extra}`);
+    } else {
+      setStatus(`取得完了: ${data.count} 件`);
+    }
   } catch (e) {
     setStatus(`エラー: ${e?.message || e}`);
     renderRows([]);
@@ -132,11 +173,22 @@ function demo() {
   document.getElementById("perMax").value = "12";
   document.getElementById("pbrMax").value = "1.5";
   document.getElementById("divMin").value = "2.5";
-  document.getElementById("symbols").value = ["7203", "9432", "8306", "AAPL"].join(
-    "\n",
-  );
+  if (mode === "quotes") {
+    document.getElementById("symbols").value = ["7203", "9432", "8306", "AAPL"].join(
+      "\n",
+    );
+  } else {
+    document.getElementById("limit").value = "200";
+    document.getElementById("offset").value = "0";
+    document.getElementById("includeEtf").checked = true;
+  }
 }
 
 document.getElementById("runBtn").addEventListener("click", run);
 document.getElementById("demoBtn").addEventListener("click", demo);
+
+document.getElementById("tabScreen").addEventListener("click", () => setMode("screen"));
+document.getElementById("tabQuotes").addEventListener("click", () => setMode("quotes"));
+
+setMode("screen");
 

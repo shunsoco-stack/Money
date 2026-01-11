@@ -16,6 +16,11 @@
       </header>
 
       <section class="card">
+        <div class="tabs">
+          <button id="tabScreen" class="tab active" type="button">銘柄入力なし（スクリーニング）</button>
+          <button id="tabQuotes" class="tab" type="button">銘柄指定（個別取得）</button>
+        </div>
+
         <div class="grid">
           <label class="field">
             <span class="label">PER 上限（例: 12）</span>
@@ -31,7 +36,25 @@
           </label>
         </div>
 
-        <label class="field">
+        <div id="screenOptions" class="grid screenGrid">
+          <label class="field">
+            <span class="label">結果件数（上限）</span>
+            <input id="limit" type="number" step="1" value="200" min="1" max="2000" />
+          </label>
+          <label class="field">
+            <span class="label">オフセット（次ページ）</span>
+            <input id="offset" type="number" step="1" value="0" min="0" />
+          </label>
+          <label class="field checkbox">
+            <span class="label"> </span>
+            <label class="checkline">
+              <input id="includeEtf" type="checkbox" checked />
+              <span>ETFを含める</span>
+            </label>
+          </label>
+        </div>
+
+        <label id="symbolsField" class="field hidden">
           <span class="label">銘柄（1行1銘柄。日本株は4桁なら自動で .T を付与）</span>
           <textarea id="symbols" rows="6" placeholder="例:&#10;7203&#10;9432.T&#10;AAPL"></textarea>
         </label>
@@ -60,12 +83,13 @@
                 <th class="num">PBR</th>
                 <th class="num">予想1株配当(年)</th>
                 <th class="num">配当利回り%</th>
+                <th>asOf</th>
                 <th>理由</th>
               </tr>
             </thead>
             <tbody id="resultsBody">
               <tr>
-                <td colspan="12" class="muted">条件を入力して「取得する」を押してください。</td>
+                <td colspan="13" class="muted">条件を入力して「取得する」を押してください。</td>
               </tr>
             </tbody>
           </table>
