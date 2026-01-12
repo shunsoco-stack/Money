@@ -16,6 +16,9 @@ const $ = (id) => {
 const ui = {
   baseUrl: $("baseUrl"),
   transport: $("transport"),
+  mailaddress: $("mailaddress"),
+  password: $("password"),
+  btnGetRefreshToken: $("btnGetRefreshToken"),
   refreshToken: $("refreshToken"),
   rememberRefresh: $("rememberRefresh"),
   btnGetIdToken: $("btnGetIdToken"),
@@ -54,6 +57,7 @@ function logLine(message, data) {
 }
 
 function setBusy(busy) {
+  ui.btnGetRefreshToken.disabled = busy;
   ui.btnGetIdToken.disabled = busy;
   ui.btnFetchDaily.disabled = busy;
 }
@@ -257,6 +261,12 @@ async function getIdTokenFromRefresh(refreshToken) {
   }
 }
 
+async function getRefreshTokenFromUser({ mailaddress, password }) {
+  // J-Quants doc: POST /token/auth_user  { mailaddress, password } -> { refreshToken }
+  const res = await apiFetch("/token/auth_user", { method: "POST", body: { mailaddress, password } });
+  return res?.refreshToken ?? res?.refresh_token ?? res?.refreshtoken ?? "";
+}
+
 async function fetchDailyQuotes({ code, from, to }) {
   return await apiFetch("/prices/daily_quotes", {
     method: "GET",
@@ -274,6 +284,8 @@ function clearAll() {
   state = { idToken: "", lastRows: null, lastColumns: null };
   ui.idToken.value = "";
   ui.refreshToken.value = "";
+  ui.mailaddress.value = "";
+  ui.password.value = "";
   ui.summary.textContent = "";
   ui.tableWrap.innerHTML = "";
   ui.btnDownloadCsv.disabled = true;
@@ -325,6 +337,28 @@ ui.btnCopyIdToken.addEventListener("click", async () => {
     logLine("idToken をクリップボードにコピーしました。");
   } catch (e) {
     logLine("コピーに失敗しました（ブラウザ制約の可能性）。", String(e?.message ?? e));
+  }
+});
+
+ui.btnGetRefreshToken.addEventListener("click", async () => {
+  setBusy(true);
+  try {
+    const mailaddress = ui.mailaddress.value.trim();
+    const password = ui.password.value;
+    if (!mailaddress) throw new Error("メールアドレスを入力してください");
+    if (!password) throw new Error("パスワードを入力してください");
+
+    logLine("refreshToken 取得中…", { baseUrl: getBaseUrl() });
+    const refreshToken = await getRefreshTokenFromUser({ mailaddress, password });
+    if (!refreshToken) throw new Error("refreshToken を取得できませんでした（レスポンス形式が想定外）");
+
+    ui.refreshToken.value = refreshToken;
+    persistSettings();
+    logLine("refreshToken 取得成功。refreshToken 欄にセットしました。");
+  } catch (e) {
+    logLine("refreshToken 取得失敗。", normalizeError(e));
+  } finally {
+    setBusy(false);
   }
 });
 

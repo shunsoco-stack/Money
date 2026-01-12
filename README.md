@@ -5,6 +5,7 @@ J-Quantsのトークンを使って、ブラウザで日次株価を取得・表
 ### できること
 
 - **refreshToken → idToken を取得**
+- **メール/パスワード（auth_user）→ refreshToken を取得（refreshTokenが見つからない場合）**
 - **日次株価（Daily Quotes）を取得して表で表示**
 - **取得結果をCSVでダウンロード**
 
@@ -39,6 +40,7 @@ node proxy/server.js
 ### 使い方
 
 1. **refreshToken** を入力して **idToken を取得**
+   - refreshToken が見つからない場合は、画面の「メール/パスワードから取得」を開いて **refreshToken を取得**（`/token/auth_user`）
 2. **銘柄コード（例: 7203）** と **From/To（YYYYMMDD）** を入れて **取得**
 3. 表が出たら **CSV** ボタンでダウンロード
 

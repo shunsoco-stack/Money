@@ -44,6 +44,31 @@
           J-Quantsの<code>refreshToken</code>を入力して<code>idToken</code>を取得します（ブラウザに秘密情報が入る点に注意）。
         </p>
 
+        <details class="details">
+          <summary>refreshToken が見つからない場合（メール/パスワードから取得）</summary>
+          <p class="muted">
+            一部のアカウントでは、ポータル上に「Refresh Token 発行」ボタンがなく、APIの
+            <code>/token/auth_user</code>（メール+パスワード）で <code>refreshToken</code> を取得します。
+            可能ならローカルプロキシ経由（上の「リクエスト方法」）を推奨します。
+          </p>
+          <div class="grid grid--2">
+            <label class="field">
+              <span class="field__label">メールアドレス</span>
+              <input id="mailaddress" class="field__input" type="email" autocomplete="username" placeholder="例: you@example.com" />
+            </label>
+            <label class="field">
+              <span class="field__label">パスワード</span>
+              <input id="password" class="field__input" type="password" autocomplete="current-password" placeholder="J-Quantsのパスワード" />
+            </label>
+            <div class="field grid__span2">
+              <span class="field__label">操作</span>
+              <div class="row">
+                <button id="btnGetRefreshToken" class="btn btn--primary" type="button">refreshToken を取得</button>
+              </div>
+            </div>
+          </div>
+        </details>
+
         <div class="grid grid--2">
           <label class="field grid__span2">
             <span class="field__label">refreshToken</span>
