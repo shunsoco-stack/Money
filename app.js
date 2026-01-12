@@ -127,14 +127,35 @@ async function apiFetch(path, { method = "GET", headers = {}, query = null, body
     if (!state.idToken) throw new Error("idToken が未取得です（先に認証してください）");
     h.set("Authorization", `Bearer ${state.idToken}`);
   }
-  if (body && !(body instanceof FormData)) {
-    h.set("Content-Type", "application/json");
+  const isForm = body instanceof URLSearchParams;
+  const isFormData = body instanceof FormData;
+  const isString = typeof body === "string";
+  const isPlainObject =
+    body !== null && body !== undefined && typeof body === "object" && !Array.isArray(body) && !isForm && !isFormData;
+
+  if (body) {
+    // Respect explicit Content-Type if caller set it.
+    if (!h.has("Content-Type") && !isFormData) {
+      if (isForm) h.set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
+      else if (isPlainObject) h.set("Content-Type", "application/json");
+      // string: leave unset unless caller specified
+    }
   }
 
   const res = await fetch(url.toString(), {
     method,
     headers: h,
-    body: body ? (body instanceof FormData ? body : JSON.stringify(body)) : undefined,
+    body: body
+      ? isFormData
+        ? body
+        : isForm
+          ? body.toString()
+          : isPlainObject
+            ? JSON.stringify(body)
+            : isString
+              ? body
+              : JSON.stringify(body)
+      : undefined,
   });
 
   const parsed = await readJsonOrText(res);
@@ -262,9 +283,28 @@ async function getIdTokenFromRefresh(refreshToken) {
 }
 
 async function getRefreshTokenFromUser({ mailaddress, password }) {
-  // J-Quants doc: POST /token/auth_user  { mailaddress, password } -> { refreshToken }
-  const res = await apiFetch("/token/auth_user", { method: "POST", body: { mailaddress, password } });
-  return res?.refreshToken ?? res?.refresh_token ?? res?.refreshtoken ?? "";
+  // J-Quants: POST /token/auth_user -> { refreshToken }
+  // 環境差で body 形式が異なることがあるため、複数形式で試行する。
+  const candidates = [
+    { kind: "json(mailaddress)", body: { mailaddress, password } },
+    { kind: "json(mailAddress)", body: { mailAddress: mailaddress, password } },
+    { kind: "form", body: new URLSearchParams({ mailaddress, password }) },
+  ];
+
+  let lastErr = null;
+  for (const c of candidates) {
+    try {
+      const res = await apiFetch("/token/auth_user", { method: "POST", body: c.body });
+      const token = res?.refreshToken ?? res?.refresh_token ?? res?.refreshtoken ?? "";
+      if (token) return token;
+      lastErr = new Error(`refreshToken を取得できませんでした（レスポンス形式が想定外: ${c.kind}）`);
+    } catch (e) {
+      // 認証情報が正しくても形式不一致で400になるケースを想定し、次候補へ。
+      lastErr = e;
+      logLine("auth_user 形式を変えて再試行します。", { tried: c.kind, message: e?.message, details: e?.details });
+    }
+  }
+  throw lastErr ?? new Error("refreshToken を取得できませんでした");
 }
 
 async function fetchDailyQuotes({ code, from, to }) {
