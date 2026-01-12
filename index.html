@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>J-Quants 株価ビューア（ブラウザ）</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="container">
+        <div class="brand">
+          <div class="brand__title">J-Quants 株価ビューア</div>
+          <div class="brand__subtitle">ブラウザだけで日次株価を取得・表示（必要ならローカルプロキシ）</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <h2>接続先</h2>
+        <p class="muted">
+          直接APIにアクセスできない（CORSエラー）場合は、後述のローカルプロキシを起動して
+          <code>http://localhost:8787/api/v1</code> を指定してください。
+        </p>
+        <div class="grid grid--2">
+          <label class="field">
+            <span class="field__label">API Base URL</span>
+            <input id="baseUrl" class="field__input" type="url" inputmode="url" />
+          </label>
+          <label class="field">
+            <span class="field__label">リクエスト方法</span>
+            <select id="transport" class="field__input">
+              <option value="direct">ブラウザ → J-Quants（直）</option>
+              <option value="proxy">ブラウザ → ローカルプロキシ</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>認証（refreshToken → idToken）</h2>
+        <p class="muted">
+          J-Quantsの<code>refreshToken</code>を入力して<code>idToken</code>を取得します（ブラウザに秘密情報が入る点に注意）。
+        </p>
+
+        <div class="grid grid--2">
+          <label class="field grid__span2">
+            <span class="field__label">refreshToken</span>
+            <input id="refreshToken" class="field__input" type="password" autocomplete="off" placeholder="refreshToken を貼り付け" />
+          </label>
+          <label class="field">
+            <span class="field__label">保存（localStorage）</span>
+            <select id="rememberRefresh" class="field__input">
+              <option value="no">保存しない</option>
+              <option value="yes">保存する（自己責任）</option>
+            </select>
+          </label>
+          <div class="field">
+            <span class="field__label">操作</span>
+            <div class="row">
+              <button id="btnGetIdToken" class="btn btn--primary" type="button">idToken を取得</button>
+              <button id="btnClearTokens" class="btn" type="button">トークンを消去</button>
+            </div>
+          </div>
+        </div>
+
+        <details class="details">
+          <summary>取得した idToken（表示/コピー）</summary>
+          <div class="stack">
+            <textarea id="idToken" class="textarea" rows="5" readonly></textarea>
+            <div class="row">
+              <button id="btnCopyIdToken" class="btn" type="button">コピー</button>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="card">
+        <h2>株価（日次）を取得</h2>
+        <div class="grid grid--4">
+          <label class="field">
+            <span class="field__label">銘柄コード</span>
+            <input id="code" class="field__input" type="text" inputmode="numeric" placeholder="例: 7203" />
+          </label>
+          <label class="field">
+            <span class="field__label">From (YYYYMMDD)</span>
+            <input id="from" class="field__input" type="text" inputmode="numeric" placeholder="例: 20240101" />
+          </label>
+          <label class="field">
+            <span class="field__label">To (YYYYMMDD)</span>
+            <input id="to" class="field__input" type="text" inputmode="numeric" placeholder="例: 20241231" />
+          </label>
+          <div class="field">
+            <span class="field__label">操作</span>
+            <div class="row">
+              <button id="btnFetchDaily" class="btn btn--primary" type="button">取得</button>
+              <button id="btnDownloadCsv" class="btn" type="button" disabled>CSV</button>
+            </div>
+          </div>
+        </div>
+        <div id="summary" class="summary muted"></div>
+        <div id="tableWrap" class="table-wrap"></div>
+      </section>
+
+      <section class="card">
+        <h2>ログ</h2>
+        <div class="row row--between">
+          <div class="muted">エラー（CORS含む）やレスポンス概要を表示します。</div>
+          <button id="btnClearLog" class="btn" type="button">ログクリア</button>
+        </div>
+        <pre id="log" class="log" aria-live="polite"></pre>
+      </section>
+
+      <footer class="footer muted">
+        <div>
+          注意: ブラウザ直実行は<strong>APIキー/トークンが端末に露出</strong>します。公開環境では使わないでください。
+        </div>
+      </footer>
+    </main>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
