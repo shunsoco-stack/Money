@@ -13,6 +13,7 @@
  */
 
 const http = require("node:http");
+const https = require("node:https");
 
 const TARGET_ORIGIN = "https://api.jquants.com";
 const LISTEN_PORT = Number(process.env.PORT || 8787);
@@ -37,6 +38,11 @@ function isAllowedPath(url) {
   return url.pathname.startsWith("/api/v1/");
 }
 
+function pickHeader(req, name) {
+  const v = req.headers[name.toLowerCase()];
+  return typeof v === "string" ? v : Array.isArray(v) ? v.join(",") : undefined;
+}
+
 async function readBody(req) {
   if (req.method === "GET" || req.method === "HEAD") return null;
   return await new Promise((resolve, reject) => {
@@ -53,6 +59,41 @@ async function readBody(req) {
     });
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
+  });
+}
+
+async function forwardToUpstream({ method, upstreamUrl, req, body }) {
+  return await new Promise((resolve, reject) => {
+    const headers = {};
+    const auth = pickHeader(req, "authorization");
+    const ct = pickHeader(req, "content-type");
+    const accept = pickHeader(req, "accept");
+    if (auth) headers["authorization"] = auth;
+    if (ct) headers["content-type"] = ct;
+    if (accept) headers["accept"] = accept;
+    if (body && typeof body.length === "number") headers["content-length"] = String(body.length);
+
+    const r = https.request(
+      upstreamUrl,
+      {
+        method,
+        headers,
+      },
+      (upstreamRes) => {
+        const chunks = [];
+        upstreamRes.on("data", (c) => chunks.push(c));
+        upstreamRes.on("end", () => {
+          resolve({
+            statusCode: upstreamRes.statusCode || 502,
+            contentType: upstreamRes.headers["content-type"] || "application/json; charset=utf-8",
+            body: Buffer.concat(chunks),
+          });
+        });
+      }
+    );
+    r.on("error", reject);
+    if (body) r.write(body);
+    r.end();
   });
 }
 
@@ -78,22 +119,13 @@ const server = http.createServer(async (req, res) => {
     const upstreamUrl = new URL(`${TARGET_ORIGIN}${url.pathname.replace(/^\/api/, "")}${url.search}`);
     const body = await readBody(req);
 
-    const headers = new Headers();
-    // Forward auth + content-type
-    if (req.headers.authorization) headers.set("Authorization", req.headers.authorization);
-    if (req.headers["content-type"]) headers.set("Content-Type", req.headers["content-type"]);
-
-    const upstreamRes = await fetch(upstreamUrl.toString(), {
+    const upstream = await forwardToUpstream({
       method: req.method,
-      headers,
-      body: body ?? undefined,
+      upstreamUrl,
+      req,
+      body: body ?? null,
     });
-
-    // Pass-through response body & content-type
-    const ct = upstreamRes.headers.get("content-type") || "application/json; charset=utf-8";
-    const buf = Buffer.from(await upstreamRes.arrayBuffer());
-
-    send(res, upstreamRes.status, withCors({ "Content-Type": ct }), buf);
+    send(res, upstream.statusCode, withCors({ "Content-Type": upstream.contentType }), upstream.body);
   } catch (e) {
     send(
       res,
